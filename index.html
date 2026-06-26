@@ -616,4 +616,281 @@
       <div class="genre-card" onclick="selectGenre(this,'Thriller')"><span class="genre-icon">🔪</span>Thriller</div>
       <div class="genre-card" onclick="selectGenre(this,'Horror')"><span class="genre-icon">👁️</span>Horror</div>
       <div class="genre-card" onclick="selectGenre(this,'Sci-Fi')"><span class="genre-icon">🚀</span>Sci-Fi</div>
-      <div class="genre-card" onclick="selectGenre(this,'Adventure')"
+      <div class="genre-card" onclick="selectGenre(this,'Adventure')"><span class="genre-icon">🗺️</span>Adventure</div>
+      <div class="genre-card" onclick="selectGenre(this,'Drama')"><span class="genre-icon">🎬</span>Drama</div>
+      <div class="genre-card" onclick="selectGenre(this,'Crime')"><span class="genre-icon">🕵️</span>Crime</div>
+      <div class="genre-card" onclick="selectGenre(this,'Mystery')"><span class="genre-icon">🔍</span>Mystery</div>
+      <div class="genre-card" onclick="selectGenre(this,'Fantasy')"><span class="genre-icon">🧙</span>Fantasy</div>
+      <div class="genre-card" onclick="selectGenre(this,'Animation')"><span class="genre-icon">✨</span>Animation</div>
+      <div class="genre-card" onclick="selectGenre(this,'Family')"><span class="genre-icon">👨‍👩‍👧</span>Family</div>
+      <div class="genre-card" onclick="selectGenre(this,'Documentary')"><span class="genre-icon">🎥</span>Documentary</div>
+    </div>
+    <div class="step-nav">
+      <button class="btn-back" onclick="goToStep(1)">← Back</button>
+      <button class="btn-next" id="nextStep2" onclick="fetchRecommendations()" disabled>Find My Movies →</button>
+    </div>
+  </div>
+</div>
+
+<!-- LOADING -->
+<div id="loading" class="screen">
+  <div class="loader-ring"></div>
+  <div class="loader-text">Curating your list…</div>
+  <p class="loader-sub">Matching your mood with the perfect films</p>
+</div>
+
+<!-- RESULTS -->
+<div id="results" class="screen">
+  <div id="resultsInner"></div>
+</div>
+
+<footer>Made with ❤️ for movie lovers.</footer>
+
+<script>
+  let selectedMood = '';
+  let selectedGenres = [];
+  let favorites = new Set();
+  let allMovies = [];
+  let currentSearch = '';
+  let currentRating = 0;
+  let currentYear = 0;
+
+  function goToStep(n) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    const ids = ['welcome','step1','step2','loading','results'];
+    const el = document.getElementById(ids[n]);
+    el.classList.add('active');
+    if(n > 0) document.body.classList.add('hide-bars');
+    else document.body.classList.remove('hide-bars');
+    window.scrollTo(0,0);
+  }
+
+  function selectMood(el, mood) {
+    document.querySelectorAll('.mood-card').forEach(c => c.classList.remove('selected'));
+    el.classList.add('selected');
+    selectedMood = mood;
+    document.getElementById('nextStep1').disabled = false;
+  }
+
+  function selectGenre(el, genre) {
+    el.classList.toggle('selected');
+    if(el.classList.contains('selected')) {
+      if(!selectedGenres.includes(genre)) selectedGenres.push(genre);
+    } else {
+      selectedGenres = selectedGenres.filter(g => g !== genre);
+    }
+    document.getElementById('nextStep2').disabled = selectedGenres.length === 0;
+  }
+
+  async function fetchRecommendations() {
+    goToStep(3);
+    const genreStr = selectedGenres.join(', ');
+    const prompt = `You are a movie recommendation expert. The user is feeling "${selectedMood}" and wants to watch ${genreStr} movies.
+
+Recommend exactly 10 movies. Respond ONLY with a JSON array, no markdown, no preamble. Each object must have:
+- title (string)
+- year (number)
+- imdbRating (number, e.g. 8.2)
+- runtime (string, e.g. "2h 28m")
+- genre (string, comma separated, max 3 genres)
+- description (string, 2-3 sentences)
+- moodMatch (string, 1 sentence explaining why this matches the "${selectedMood}" mood)
+- onNetflix (boolean, true only for well-known films actually on Netflix)
+- emoji (string, single emoji representing the film)
+
+Return only valid JSON array. No markdown code fences.`;
+
+    try {
+      const response = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({
+          model: "claude-sonnet-4-6",
+          max_tokens: 1000,
+          messages: [{role:"user",content:prompt}]
+        })
+      });
+      const data = await response.json();
+      let text = data.content.map(i => i.text || '').join('');
+      text = text.replace(/```json|```/g,'').trim();
+      allMovies = JSON.parse(text);
+      renderResults(allMovies);
+      goToStep(4);
+    } catch(e) {
+      console.error(e);
+      // Fallback movies
+      allMovies = getFallbackMovies();
+      renderResults(allMovies);
+      goToStep(4);
+    }
+  }
+
+  function getFallbackMovies() {
+    return [
+      {title:"Inception",year:2010,imdbRating:8.8,runtime:"2h 28m",genre:"Sci-Fi, Thriller",description:"A thief who steals corporate secrets through dream-sharing technology is given the inverse task of planting an idea into the mind of a C.E.O.",moodMatch:"Perfect for curious minds craving a mental adventure.",onNetflix:false,emoji:"🌀"},
+      {title:"The Grand Budapest Hotel",year:2014,imdbRating:8.1,runtime:"1h 39m",genre:"Comedy, Drama",description:"A writer encounters the owner of an aging European hotel between the wars, who tells him of his early years serving as a lobby boy in the hotel's glorious years.",moodMatch:"Whimsical and charming — guaranteed to lift your spirits.",onNetflix:false,emoji:"🏨"},
+      {title:"Parasite",year:2019,imdbRating:8.5,runtime:"2h 12m",genre:"Drama, Thriller",description:"Greed and class discrimination threaten the newly formed symbiotic relationship between the wealthy Park family and the destitute Kim clan.",moodMatch:"A gripping story that keeps you on the edge of your seat.",onNetflix:false,emoji:"🪲"},
+      {title:"La La Land",year:2016,imdbRating:8.0,runtime:"2h 8m",genre:"Romance, Drama",description:"While navigating their careers in Los Angeles, a pianist and an actress fall in love while attempting to reconcile their aspirations for the future.",moodMatch:"A beautiful ode to dreamers that will stir your soul.",onNetflix:true,emoji:"🌟"},
+      {title:"The Dark Knight",year:2008,imdbRating:9.0,runtime:"2h 32m",genre:"Action, Crime",description:"When the menace known as the Joker wreaks havoc and chaos on the people of Gotham, Batman must accept one of the greatest psychological and physical tests of his ability to fight injustice.",moodMatch:"An intense, adrenaline-pumping ride from start to finish.",onNetflix:false,emoji:"🦇"},
+      {title:"Everything Everywhere All at Once",year:2022,imdbRating:7.8,runtime:"2h 19m",genre:"Sci-Fi, Comedy",description:"An aging Chinese immigrant is swept up in an insane adventure, where she alone can save the world by exploring other universes.",moodMatch:"Wildly creative and emotionally resonant in equal measure.",onNetflix:false,emoji:"🥢"},
+      {title:"Interstellar",year:2014,imdbRating:8.6,runtime:"2h 49m",genre:"Sci-Fi, Drama",description:"A team of explorers travel through a wormhole in space in an attempt to ensure humanity's survival.",moodMatch:"Expansive and awe-inspiring — for when you need to feel something big.",onNetflix:true,emoji:"🪐"},
+      {title:"Knives Out",year:2019,imdbRating:7.9,runtime:"2h 10m",genre:"Mystery, Comedy",description:"A detective investigates the death of a patriarch of an eccentric, combative family.",moodMatch:"Fun, sharp, and endlessly entertaining — the perfect escape.",onNetflix:false,emoji:"🔪"},
+      {title:"Soul",year:2020,imdbRating:8.1,runtime:"1h 40m",genre:"Animation, Drama",description:"A musician who has lost his passion for music is transported out of his body and must find his way back with the help of an infant soul.",moodMatch:"Deeply moving and surprisingly philosophical.",onNetflix:false,emoji:"🎹"},
+      {title:"The Prestige",year:2006,imdbRating:8.5,runtime:"2h 10m",genre:"Drama, Mystery",description:"After a tragic accident, two stage magicians engage in a battle to create the ultimate illusion while sacrificing everything they have to outwit each other.",moodMatch:"Mysterious and magnetic — impossible to put down.",onNetflix:false,emoji:"🎩"}
+    ];
+  }
+
+  function renderResults(movies) {
+    const filtered = applyFilters(movies);
+    const inner = document.getElementById('resultsInner');
+    const genreLabel = selectedGenres.join(' · ');
+
+    inner.innerHTML = `
+      <div class="results-header">
+        <div>
+          <div class="results-title">Your ${selectedMood} Night Picks</div>
+          <div class="results-subtitle">${genreLabel} · ${filtered.length} films curated for you</div>
+        </div>
+        <div class="results-actions">
+          <div class="fav-count">❤️ <span id="favCount">0</span> saved</div>
+          <button class="btn-action" onclick="fetchRecommendations()">↻ Recommend Again</button>
+          <button class="btn-action btn-surprise" onclick="surpriseMe()">✦ Surprise Me</button>
+          <button class="btn-action" onclick="goToStep(1)">← Change Mood</button>
+        </div>
+      </div>
+
+      <div class="filter-bar">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="searchInput" placeholder="Search by title…" oninput="onSearch(this.value)" value="${currentSearch}"/>
+        <div class="filter-divider"></div>
+        <span class="filter-label">Rating</span>
+        <select class="filter-select" onchange="onRating(this.value)">
+          <option value="0">Any</option>
+          <option value="7">7+</option>
+          <option value="8">8+</option>
+          <option value="9">9+</option>
+        </select>
+        <div class="filter-divider"></div>
+        <span class="filter-label">Year</span>
+        <select class="filter-select" onchange="onYear(this.value)">
+          <option value="0">Any</option>
+          <option value="2020">2020s</option>
+          <option value="2010">2010s</option>
+          <option value="2000">2000s</option>
+          <option value="1990">1990s</option>
+          <option value="1980">Before 2000</option>
+        </select>
+      </div>
+
+      <div class="movies-grid" id="moviesGrid">
+        ${renderMovieCards(filtered)}
+      </div>
+    `;
+    updateFavCount();
+  }
+
+  function applyFilters(movies) {
+    return movies.filter(m => {
+      const matchSearch = !currentSearch || m.title.toLowerCase().includes(currentSearch.toLowerCase());
+      const matchRating = m.imdbRating >= currentRating;
+      const matchYear = currentYear === 0 || (
+        currentYear === 1980 ? m.year < 2000 :
+        m.year >= currentYear && m.year < currentYear + 10
+      );
+      return matchSearch && matchRating && matchYear;
+    });
+  }
+
+  function renderMovieCards(movies) {
+    if(movies.length === 0) return `
+      <div class="empty-state">
+        <span class="empty-emoji">🎬</span>
+        <div class="empty-title">No matches found</div>
+        <p class="empty-sub">We couldn't find the perfect match. Try adjusting your filters or pick another mood.</p>
+      </div>`;
+
+    return movies.map((m,i) => {
+      const isFav = favorites.has(m.title);
+      return `
+        <div class="movie-card" style="animation-delay:${i*0.06}s">
+          <div class="poster-wrap">
+            <div class="movie-poster-placeholder">${m.emoji || '🎬'}</div>
+            <button class="heart-btn ${isFav?'active':''}" onclick="toggleFav(event,'${m.title.replace(/'/g,"\\'")}',this)" title="Save to favorites">♥</button>
+          </div>
+          <div class="movie-body">
+            <div class="movie-meta">
+              <span class="movie-rating">⭐ ${m.imdbRating}</span>
+              <span>${m.year}</span>
+              <span>·</span>
+              <span>${m.runtime}</span>
+              <span>·</span>
+              <span>${m.genre}</span>
+            </div>
+            <div class="movie-title">${m.title}</div>
+            <p class="movie-desc">${m.description}</p>
+            <div class="mood-match"><strong>Why this fits:</strong> ${m.moodMatch}</div>
+            <button class="btn-watch ${m.onNetflix?'netflix':''}" onclick="handleWatch('${m.title.replace(/'/g,"\\'")}',${m.onNetflix})">
+              ${m.onNetflix ? '▶ Watch on Netflix' : '🔍 Find to Watch'}
+            </button>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  function toggleFav(e, title, btn) {
+    e.stopPropagation();
+    if(favorites.has(title)) {
+      favorites.delete(title);
+      btn.classList.remove('active');
+    } else {
+      favorites.add(title);
+      btn.classList.add('active');
+    }
+    updateFavCount();
+  }
+
+  function updateFavCount() {
+    const el = document.getElementById('favCount');
+    if(el) el.textContent = favorites.size;
+  }
+
+  function handleWatch(title, onNetflix) {
+    const q = encodeURIComponent(title);
+    if(onNetflix) window.open(`https://www.netflix.com/search?q=${q}`,'_blank');
+    else window.open(`https://www.justwatch.com/us/search?q=${q}`,'_blank');
+  }
+
+  function onSearch(val) {
+    currentSearch = val;
+    refreshGrid();
+  }
+
+  function onRating(val) {
+    currentRating = parseFloat(val);
+    refreshGrid();
+  }
+
+  function onYear(val) {
+    currentYear = parseInt(val);
+    refreshGrid();
+  }
+
+  function refreshGrid() {
+    const filtered = applyFilters(allMovies);
+    const grid = document.getElementById('moviesGrid');
+    if(grid) grid.innerHTML = renderMovieCards(filtered);
+    updateFavCount();
+  }
+
+  function surpriseMe() {
+    if(allMovies.length === 0) return;
+    const shuffled = [...allMovies].sort(() => Math.random()-0.5).slice(0,6);
+    const grid = document.getElementById('moviesGrid');
+    currentSearch='';currentRating=0;currentYear=0;
+    if(grid) grid.innerHTML = renderMovieCards(shuffled);
+    document.getElementById('searchInput').value='';
+    updateFavCount();
+  }
+</script>
+</body>
+</html>

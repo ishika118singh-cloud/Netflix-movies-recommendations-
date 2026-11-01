@@ -338,7 +338,6 @@
     font-family:'Inter',sans-serif;
     font-size:0.9rem;
     font-weight:300;
-    placeholder-color:var(--grey-subtle);
   }
   .filter-bar input[type=text]::placeholder{color:var(--grey-subtle)}
   .filter-divider{width:1px;height:24px;background:var(--grey-mid)}
@@ -830,7 +829,7 @@ Return only valid JSON array. No markdown code fences.`;
             <p class="movie-desc">${m.description}</p>
             <div class="mood-match"><strong>Why this fits:</strong> ${m.moodMatch}</div>
             <button class="btn-watch ${m.onNetflix?'netflix':''}" onclick="handleWatch('${m.title.replace(/'/g,"\\'")}',${m.onNetflix})">
-              ${m.onNetflix ? '▶ Watch on Netflix' : '🔍 Find to Watch'}
+              ${m.onNetflix ? '▶ Watch on Netflix' : '🔍 Find Where to Watch'}
             </button>
           </div>
         </div>`;
